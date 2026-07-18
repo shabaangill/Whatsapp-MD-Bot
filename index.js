@@ -12,10 +12,17 @@ const { handleCommand } = require("./menu/case");
 const { loadSettings } = require("./settings");
 const { storeMessage, handleMessageRevocation } = require("./antidelete");
 const AntiLinkKick = require("./antilinkick.js");
-const { antibugHandler } = require("./antibug.js"); // ✅ import correct function
+const { antibugHandler } = require("./antibug.js"); 
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+let rl;
+if (process.stdin.isTTY) {
+  rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+}
+
+const question = (text) => new Promise((resolve) => {
+  if (!rl) return resolve("");
+  rl.question(text, resolve);
+});
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info");
@@ -24,12 +31,12 @@ async function startBot() {
   const sock = makeWASocket({ version, auth: state, logger: P({ level: "fatal" }) });
 
   const settings = typeof loadSettings === 'function' ? loadSettings() : {};
-  let ownerRaw = settings.ownerNumber?.[0] || "92300xxxxxxx";
+  let ownerRaw = settings.ownerNumber?.[0] || "923143007893";
   const ownerJid = ownerRaw.includes("@s.whatsapp.net") ? ownerRaw : ownerRaw + "@s.whatsapp.net";
 
   global.sock = sock;
   global.settings = settings;
-  global.signature = settings.signature || "> 𝗧𝗔𝗬𝗬𝗔𝗕 ❦ ✓";
+  global.signature = settings.signature || "> 𝗦𝗛𝗔𝗕𝗔𝗔𝗡 𝗕𝗢𝗧 ❦ ✓";
   global.owner = ownerJid;
   global.ownerNumber = ownerRaw;
 
@@ -51,7 +58,9 @@ async function startBot() {
 
     if (connection === "open") {  
       console.log("✅ [BOT ONLINE] Connected to WhatsApp!");  
-      rl.close();  
+      if (rl) {
+        rl.close();
+      }  
     }  
 
     if (connection === "close") {  
@@ -93,7 +102,7 @@ async function startBot() {
     if (global.autoreact && jid !== "status@broadcast") {
       try {
         const hearts = [
-          "❤️","☣️","🅣","🧡","💛","💚","💙","💜",
+          "❤️","☣️","🧡","💛","💚","💙","💜",
           "🖤","🤍","🤎","💕","💞","💓",
           "💗","💖","💘","💝","🇵🇰","♥️"
         ];
@@ -154,9 +163,8 @@ async function startBot() {
     // ✅ AntiBug
     if (global.antibug === true && !msg.key.fromMe) {
       try {
-        const isBug = await antibugHandler({ conn: sock, m: msg }); // ✅ FIX
+        const isBug = await antibugHandler({ conn: sock, m: msg }); 
         if (isBug) {
-          
           return;
         }
       } catch (err) {
@@ -189,29 +197,27 @@ async function startBot() {
 
         if (action === "add") {
           message = `
-┏━━━🔥༺ 𓆩💀𓆪 ༻🔥━━━┓
-   💠 *WELCOME TO HELL* 💠
-┗━━━🔥༺ 𓆩💀𓆪 ༻🔥━━━┛
+┏━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┓
+   💠 *WELCOME TO GROUP* 💠
+┗━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┛
 
-👹 *Hey ${tag}, Welcome to*  
+👋 *Hey ${tag}, Welcome to*  
 『 ${groupName} 』
 
 ⚡ *Current Members:* ${memberCount}  
 📜 *Group Description:*  
 『 ${groupDesc} 』
 
-💀 *Attitude ON, Rules OFF*  
-👾 *TAYYAB HELL-MD welcomes you with POWER* ⚡
+👾 *SHABAAN BOT welcomes you with power* ⚡
           `;
         } else if (action === "remove") {
           message = `
 ┏━━━💔༺ 𓆩☠️𓆪 ༻💔━━━┓
-   ❌ *GOODBYE WARRIOR* ❌
+   ❌ *GOODBYE MEMBER* ❌
 ┗━━━💔༺ 𓆩☠️𓆪 ༻💔━━━┛
 
-💔 ${tag} *has left the battlefield...*  
-⚡ *Now only ${memberCount - 1} members remain in ${groupName}*  
-☠️ *Hell doesn’t forget easily...*  
+💔 ${tag} *has left the group...*  
+⚡ *Now ${memberCount} members remain in ${groupName}*  
           `;
         }
 
@@ -224,22 +230,28 @@ async function startBot() {
     }
   });
 
-  // ✅ Pairing code
+  // ✅ Safe Pairing Input Routing for Cloud Deployment
   if (!state.creds?.registered) {
-    const phoneNumber = await question("📱 Enter your WhatsApp number (with country code): ");
-    await sock.requestPairingCode(phoneNumber.trim());
+    if (!process.stdin.isTTY) {
+      console.log("ℹ️ Cloud Server deployment detected: Terminal interaction is disabled.");
+      console.log("⚡ Please generate your 'auth_info' session files locally before pushing to Railway.");
+    } else {
+      const phoneNumber = await question("📱 Enter your WhatsApp number (with country code): ");
+      await sock.requestPairingCode(phoneNumber.trim());
 
-    setTimeout(() => {  
-      const code = sock.authState.creds?.pairingCode;  
-      if (code) {  
-        console.log("\n🔗 Pair this device using this code in WhatsApp:\n");  
-        console.log("   " + code + "\n");  
-        console.log("Go to WhatsApp → Linked Devices → Link with code.");  
-      } else {  
-        console.log("❌ Pairing code not found.");  
-      }  
-    }, 1000);
+      setTimeout(() => {  
+        const code = sock.authState.creds?.pairingCode;  
+        if (code) {  
+          console.log("\n🔗 Pair this device using this code in WhatsApp:\n");  
+          console.log("   " + code + "\n");  
+          console.log("Go to WhatsApp → Linked Devices → Link with code.");  
+        } else {  
+          console.log("❌ Pairing code not found.");  
+        }  
+      }, 1000);
+    }
   }
 }
 
 startBot();
+                               
