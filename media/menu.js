@@ -1,5 +1,5 @@
 // 📂 menu.js
-// 🌟 Full Stylish Global Menu — TAYYAB HELL-MD
+// 🌟 Full Stylish Global Menu — SHABAAN HELL-MD
 
 const more = String.fromCharCode(8206)
 const readMore = more.repeat(2001)
@@ -16,10 +16,10 @@ const uptimeStr = `${hours}h ${minutes}m ${seconds}s`
 
 // Status box to show at menu start & each category start
 const statusBox = `
-╭━━━ *𝗧𝗔𝗬𝗬𝗔𝗕 𝗛𝗘𝗟𝗟-𝗠𝗗* ━━━╮
+╭━━━ *SHABAAN 𝗛𝗘𝗟𝗟-𝗠𝗗* ━━━╮
 ┃ 🔥 𝗠𝗼𝗱𝗲: PRIVATE|FULL POWER 
 ┃ 💀 𝗣𝗿𝗼𝘁𝗼𝗰𝗼𝗹: HELL ACTIVATED
-┃ 👑 𝗢𝘄𝗻𝗲𝗿: 𝕋𝔸𝕐𝕐𝔸𝔹 
+┃ 👑 𝗢𝘄𝗻𝗲𝗿: SHABAAN 
 ┃ ⚙️ 𝗩𝗲𝗿𝘀𝗶𝗼𝗻: 1.0.0 [𝗛𝗲𝗹𝗹 𝗕𝘂𝗶𝗹𝗱]
 ┃ ⏳ 𝗨𝗽𝘁𝗶𝗺𝗲: ${uptimeStr}
 ┃ 📅 𝗗𝗮𝘁𝗲: ${date}
@@ -32,7 +32,7 @@ const statusBox = `
 
 global.menu = `
 ${statusBox}
-╔═❖•⊰ *𝗧𝗮𝘆𝘆𝗮𝗯 𝗛𝗲𝗹𝗹-𝗠𝗱* ⊱•❖═╗  
+╔═❖•⊰ *SHABAAN 𝗛𝗲𝗹𝗹-𝗠𝗱* ⊱•❖═╗  
 ║୧⍤⃝💐 𝗠𝗲𝗻𝘂  
 ║୧⍤⃝💐 𝗢𝘄𝗻𝗲𝗿𝗠𝗲𝗻𝘂  
 ║୧⍤⃝💐 𝗗𝗼𝘄𝗻𝗹𝗼𝗮𝗱𝗠𝗲𝗻𝘂  
@@ -338,7 +338,7 @@ ${readMore}
 
 
 // 📂 menu.js
-// 🌟 Full Stylish Global Menus — TAYYAB HELL-MD
+// 🌟 Full Stylish Global Menus — SHABAAN HELL-MD
 
 // ================== OWNER MENU ==================
 global.ownermenu = `
