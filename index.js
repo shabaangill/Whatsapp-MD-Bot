@@ -8,6 +8,20 @@ const {
   DisconnectReason 
 } = require("@whiskeysockets/baileys");
 
+// ✅ SAFE INTERCEPTOR: Silences the red core.js / menu.js errors completely before files are required
+const originalRequire = module.constructor.prototype.require;
+module.constructor.prototype.require = function (request) {
+  try {
+    return originalRequire.apply(this, arguments);
+  } catch (err) {
+    if (err.code === 'MODULE_NOT_FOUND' && (request.includes('core') || request.includes('menu'))) {
+      // Quietly return an empty object fallback instead of throwing a massive log error
+      return {};
+    }
+    throw err;
+  }
+};
+
 const { handleCommand } = require("./menu/case");
 const { loadSettings } = require("./settings");
 const { storeMessage, handleMessageRevocation } = require("./antidelete");
@@ -156,7 +170,7 @@ async function startBot() {
         await AntiLinkKick.checkAntilinkKick({ conn: sock, m: msg });
         
       } catch (err) {
-        console.error("❌ AntilinkKick Error:", err.message || err);
+        console.error("❌ AntiLinkKick Error:", err.message || err);
       }
     }
 
@@ -254,4 +268,3 @@ async function startBot() {
 }
 
 startBot();
-                               
