@@ -44,14 +44,21 @@ async function startBot() {
   const sock = makeWASocket({ version, auth: state, logger: P({ level: "fatal" }) });
 
   const settings = typeof loadSettings === 'function' ? loadSettings() : {};
-  let ownerRaw = process.env.PHONE_NUMBER || settings.ownerNumber?.[0] || "923143007893";
-  const ownerJid = ownerRaw.includes("@s.whatsapp.net") ? ownerRaw : ownerRaw + "@s.whatsapp.net";
+  
+  // ✅ FIXED: Strictly isolate the number parsing so it can never be replaced by text signatures
+  let rawNum = process.env.PHONE_NUMBER || settings.ownerNumber?.[0] || "923143007893";
+  let cleanNum = String(rawNum).replace(/[^0-9]/g, "");
+  if (!cleanNum || cleanNum.length < 10) {
+    cleanNum = "923143007893"; // Final safety net fallback
+  }
+
+  const ownerJid = cleanNum + "@s.whatsapp.net";
 
   global.sock = sock;
   global.settings = settings;
   global.signature = settings.signature || "> 👑 𝗦𝗛𝗔𝗕𝗔𝗔𝗡 𝗕𝗢𝗧 ❦ ✓";
   global.owner = ownerJid;
-  global.ownerNumber = ownerRaw;
+  global.ownerNumber = cleanNum;
 
   // ✅ Flags
   global.antilink = {};
@@ -62,7 +69,7 @@ async function startBot() {
   global.autoreact = false;
   global.autostatus = false;
 
-  console.log("✅ BOT OWNER:", global.owner);
+  console.log("✅ BOT OWNER JID:", global.owner);
 
   sock.ev.on("creds.update", saveCreds);
 
@@ -74,12 +81,12 @@ async function startBot() {
       if (rl) rl.close();  
     }  
 
-    if (connection === "close") {  
+    if (connection === "close") {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 401;  
       console.log("❌ Disconnected. Reconnecting:", shouldReconnect);  
       if (shouldReconnect) {
-        setTimeout(() => startBot(), 5000); // Add a 5-second delay to prevent aggressive loops
+        setTimeout(() => startBot(), 5000);
       }  
     }
   });
@@ -196,18 +203,16 @@ async function startBot() {
     let targetNumber = global.ownerNumber;
 
     if (!process.stdin.isTTY) {
-      console.log(`ℹ️ Cloud Deployment: Requesting pairing code for setup number: ${targetNumber}`);
+      console.log(`ℹ️ Cloud Deployment: Requesting dynamic pairing code for target: ${targetNumber}`);
     } else {
       const inputNumber = await question("📱 Enter your WhatsApp number (with country code): ");
-      if (inputNumber.trim()) targetNumber = inputNumber.trim();
+      if (inputNumber.trim()) targetNumber = inputNumber.trim().replace(/[^0-9]/g, "");
     }
 
     if (targetNumber) {
-      const cleanedNumber = targetNumber.replace(/[^0-9]/g, "");
-      // Give the socket 4 seconds to settle before requesting the pairing token
       setTimeout(async () => {
         try {
-          const code = await sock.requestPairingCode(cleanedNumber);
+          const code = await sock.requestPairingCode(targetNumber);
           if (code) {
             console.log("\n====================================");
             console.log("🚀 [RAILWAY PAIRING CODE FOUND] 🚀");
@@ -224,4 +229,4 @@ async function startBot() {
 }
 
 startBot();
-    
+                             
