@@ -59,7 +59,7 @@ async function startBot() {
   global.owner = ownerJid;
   global.ownerNumber = cleanNum;
 
-  // ✅ Global Switch Indicators (Initialized cleanly)
+  // ✅ Global Switch Indicators
   global.antidelete = global.antidelete || {};
   global.antiedit = global.antiedit || {};
   global.antilink = global.antilink || {};
@@ -94,36 +94,41 @@ async function startBot() {
 
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
-    if (!msg.message) return; // Discard empty packets safely
+    if (!msg.message) return; 
 
     const jid = msg.key.remoteJid;
     const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
     const isGroup = jid.endsWith("@g.us");
 
     // ==========================================
-    // 🛠️ FIX: DYNAMIC SWITCH EVALUATIONS
+    // 🛠️ FIX: GLOBAL COVERAGE EVALUATIONS
     // ==========================================
+    // Checks if enabled in settings, globally via commands, or specifically for this JID
     const isAntiDeleteOn = (settings.ANTIDELETE === true) || 
                             (settings.antidelete === true) || 
-                            (global.antidelete[jid] === true) || 
-                            (global.antidelete === true);
+                            (global.antidelete === true) ||
+                            (global.antidelete[jid] === true) ||
+                            (Object.values(global.antidelete).includes(true));
 
     const isAntiEditOn = (settings.ANTIEDIT === true) || 
                           (settings.antiedit === true) || 
-                          (global.antiedit[jid] === true) || 
-                          (global.antiedit === true);
+                          (global.antiedit === true) ||
+                          (global.antiedit[jid] === true) ||
+                          (Object.values(global.antiedit).includes(true));
+
+    const isAutoReactOn = (global.autoreact === true) || 
+                           (global.autoreact[jid] === true) ||
+                           (Object.values(global.autoreact).includes(true));
 
     // ==========================================
-    // 🗑️ DYNAMIC ANTIDELETE ENGINE
+    // 🗑️ GLOBAL ANTIDELETE ENGINE
     // ==========================================
     if (isAntiDeleteOn) {  
       try {  
-        // Cache normal messages into your storage module automatically
         if (!msg.message.protocolMessage) {
           storeMessage(msg);  
         }
         
-        // Intercept WhatsApp structure deletion updates (Type 0 / REVOKE string hooks)
         if (msg.message?.protocolMessage?.type === 0 || msg.message?.protocolMessage?.type === 'REVOKE') {  
           await handleMessageRevocation(sock, msg);  
           return;  
@@ -134,7 +139,7 @@ async function startBot() {
     }  
 
     // ==========================================
-    // ✏️ DYNAMIC ANTIEDIT INTERCEPTOR
+    // ✏️ GLOBAL ANTIEDIT INTERCEPTOR
     // ==========================================
     if (isAntiEditOn && msg.message?.protocolMessage?.type === 14 && !msg.key.fromMe) {
       try {
@@ -144,7 +149,7 @@ async function startBot() {
         
         if (newEditedText) {
           await sock.sendMessage(jid, { 
-            text: `⚠️ *[ANTI-EDIT DETECTED]*\n\n👤 *User:* @${(msg.key.participant || msg.participant || jid).split('@')[0]}\n📝 *New message content edited to:* \n_"${newEditedText}"_`,
+            text: `⚠️ *[ANTI-EDIT DETECTED]*\n\n👤 *User:* @${(msg.key.participant || msg.participant || jid).split('@')[0]}\n📝 *New Message:* \n_"${newEditedText}"_`,
             mentions: [msg.key.participant || msg.participant || jid]
           }, { quoted: msg });
         }
@@ -152,6 +157,19 @@ async function startBot() {
         console.error("❌ AntiEdit Processing Error:", err.message);
       }
     }
+
+    // ==========================================
+    // ❤️ GLOBAL AUTOREACT INTERCEPT
+    // ==========================================
+    if (isAutoReactOn && jid !== "status@broadcast") {
+      try {
+        const hearts = ["❤️","☣️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💕","💞","💓","💗","💖","💘","💝","🇵🇰","♥️"];
+        const randomHeart = hearts[Math.floor(Math.random() * hearts.length)];
+        await sock.sendMessage(jid, { react: { text: randomHeart, key: msg.key } });
+      } catch (err) {
+        console.error("❌ AutoReact Error:", err.message);
+      }
+    }  
 
     // ✅ AUTOTYPING INTERCEPT
     if (global.autotyping && jid !== "status@broadcast") {  
@@ -161,17 +179,6 @@ async function startBot() {
       } catch (err) {  
         console.error("❌ AutoTyping Error:", err.message);  
       }  
-    }  
-
-    // ✅ AUTOREACT INTERCEPT
-    if (global.autoreact && jid !== "status@broadcast") {
-      try {
-        const hearts = ["❤️","☣️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💕","💞","💓","💗","💖","💘","💝","🇵🇰","♥️"];
-        const randomHeart = hearts[Math.floor(Math.random() * hearts.length)];
-        await sock.sendMessage(jid, { react: { text: randomHeart, key: msg.key } });
-      } catch (err) {
-        console.error("❌ AutoReact Error:", err.message);
-      }
     }  
 
     // ✅ AUTOSTATUS VIEW
@@ -281,4 +288,4 @@ async function startBot() {
 }
 
 startBot();
-    
+  
