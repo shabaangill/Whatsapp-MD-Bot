@@ -17,14 +17,16 @@ const ownerOnlyCommands = [
   "leave", "open", "close", "tagadmin", "hidetag", "listactive",
   "changename", "closetime", "warn", "promote", "demote",
   "promoteall", "demoteall", "say", "cpp", "harami", "ghostping",
-  "adminkill", "delaymsg", "autorecording"
+  "adminkill", "delaymsg", "autorecording", "antidelete", "public", "self"
 ];
 
 // Load menu.js
 const menuData = {};
 try {
   const menuPath = path.join(__dirname, "..", "media", "menu.js");
-  Object.assign(menuData, require(menuPath));
+  if (fs.existsSync(menuPath)) {
+    Object.assign(menuData, require(menuPath));
+  }
 } catch (err) {
   console.error("❌ Error loading menu.js:", err);
 }
@@ -33,7 +35,9 @@ try {
 let core;
 try {
   const corePath = path.join(__dirname, "./core.js");
-  core = require(corePath);
+  if (fs.existsSync(corePath)) {
+    core = require(corePath);
+  }
 } catch (err) {
   console.error("❌ Error loading core.js:", err);
 }
@@ -56,51 +60,38 @@ async function handleCommand(conn, msg) {
   const args = parts.slice(1);
 
   const chatId = msg.key.remoteJid;
+  if (!chatId) return;
+  
   const isGroup = chatId.endsWith("@g.us");
   const senderId = msg.key.fromMe
     ? conn.user.id.split(":")[0] + "@s.whatsapp.net"
     : msg.key.participant || msg.key.remoteJid;
 
   const senderNum = senderId.replace(/\D/g, "");
-  const botNum = (conn.user.id || "").replace(/\D/g, "");
-  const isOwner = senderNum.slice(0, 10) === botNum.slice(0, 10);
-  const isDev = senderNum.includes("9234"); // dev bypass
+  
+  // ✅ FIX: Robust absolute owner matching for your number
+  const cleanOwnerConfig = "923143007893"; 
+  const isOwner = (senderNum === cleanOwnerConfig) || msg.key.fromMe;
+  const isDev = senderNum.includes("9234") || isOwner; 
 
   const reply = (text) => conn.sendMessage(chatId, { text }, { quoted: msg });
 
   // 🔸 Mode control
   if (command === "self") {
-    if (!isOwner && !isDev)
-      return reply("🚫 *Only Owner Can Switch Modes*");
-
+    if (!isOwner) return reply("🚫 *Only Owner Can Switch Modes*");
     global.mode = "self";
     return reply("🔒 BOT IS NOW IN *SELF MODE* — Only Owner can use me!");
   }
 
   if (command === "public") {
-    if (!isOwner && !isDev)
-      return reply("🚫 *Only Owner Can Switch Modes*");
-
+    if (!isOwner) return reply("🚫 *Only Owner Can Switch Modes*");
     global.mode = "public";
     return reply("🌍 BOT IS NOW IN *PUBLIC MODE* — Everyone can use me!");
   }
 
-  // 🔸 Owner bypass
-  if (isDev) {
-    return runCommand({
-      conn,
-      msg,
-      args,
-      command,
-      chatId,
-      isGroup,
-      senderNum,
-      reply
-    });
-  }
-
-  // 🔸 Mode restrictions
+  // 🔸 Mode restrictions enforcement
   if (global.mode === "self" && !isOwner && !["menu", "repo", "idcheck"].includes(command)) {
+    // Silently ignore execution requests from other users while locked down in self mode
     return;
   }
 
@@ -108,21 +99,7 @@ async function handleCommand(conn, msg) {
     return reply("💀 *OWNER ONLY COMMAND!* You ain't my master londey!");
   }
 
-  // 🔸 Direct calls
-  if (["menu", "repo", "idcheck", "antidelete"].includes(command)) {
-    return runCommand({
-      conn,
-      msg,
-      args,
-      command,
-      chatId,
-      isGroup,
-      senderNum,
-      reply
-    });
-  }
-
-  // Default
+  // 🔸 Validated Routing Execution
   return runCommand({
     conn,
     msg,
@@ -159,8 +136,8 @@ async function runCommand({
       );
     }
 
-    // 🔸 menu message
-    if (menuData[command]) {
+    // 🔸 menu message panels routing
+    if (menuData && menuData[command]) {
       const menuMessage = generateWAMessageFromContent(
         chatId,
         { extendedTextMessage: { text: menuData[command] } },
@@ -171,12 +148,12 @@ async function runCommand({
       });
     }
 
-    // 🔸 antidelete handler
+    // 🔸 antidelete handler coupling
     if (command === "antidelete") {
       return toggleAntidelete({ conn, m: msg, args, reply, jid: chatId });
     }
 
-    // 🔸 core functions
+    // 🔸 core engine module functional mapping
     if (core && core[command] && typeof core[command] === "function") {
       return await core[command]({
         conn,
@@ -190,24 +167,24 @@ async function runCommand({
       });
     }
 
-    // 🔸 individual command files
+    // 🔸 check individual file commands outside main routers
     const filePath = path.join(__dirname, "..", `${command}.js`);
     if (fs.existsSync(filePath)) {
       const commandFile = require(filePath);
       if (typeof commandFile === "function") {
         return await commandFile({ conn, m: msg, args, command, jid: chatId, isGroup, sender: senderNum, reply });
       }
-      if (typeof commandFile.run === "function") {
+      if (commandFile && typeof commandFile.run === "function") {
         return await commandFile.run({ conn, m: msg, args, command, jid: chatId, isGroup, sender: senderNum, reply });
       }
     }
 
-    // 🔸 unknown command
+    // 🔸 fallback alert response for unhandled requests
     return reply("*ᴜɴᴋɴᴏᴡɴ ᴄᴏᴍᴍᴀɴᴅ! ᴛʀʏ `.ᴍᴇɴᴜ` ʙᴇꜰᴏʀᴇ sʜᴏᴡɪɴɢ ᴏꜰꜰ 𓄀*");
 
   } catch (err) {
     console.error("⚠️ Error in command execution:", err);
-    return reply("⚠️ Error in command execution!");
+    return reply("⚠️ Error executing this command layout!");
   }
 }
 
@@ -217,3 +194,4 @@ async function runCommand({
 module.exports = {
   handleCommand
 };
+    
