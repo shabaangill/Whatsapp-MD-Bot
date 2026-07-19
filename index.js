@@ -45,11 +45,10 @@ async function startBot() {
 
   const settings = typeof loadSettings === 'function' ? loadSettings() : {};
   
-  // ✅ FIXED: Strictly isolate the number parsing so it can never be replaced by text signatures
   let rawNum = process.env.PHONE_NUMBER || settings.ownerNumber?.[0] || "923143007893";
   let cleanNum = String(rawNum).replace(/[^0-9]/g, "");
   if (!cleanNum || cleanNum.length < 10) {
-    cleanNum = "923143007893"; // Final safety net fallback
+    cleanNum = "923143007893"; 
   }
 
   const ownerJid = cleanNum + "@s.whatsapp.net";
@@ -60,14 +59,16 @@ async function startBot() {
   global.owner = ownerJid;
   global.ownerNumber = cleanNum;
 
-  // ✅ Flags
-  global.antilink = {};
-  global.antilinkick = {};
-  global.antibug = false;
-  global.autogreet = {};
-  global.autotyping = false;
-  global.autoreact = false;
-  global.autostatus = false;
+  // ✅ Global Switch Indicators (Initialized cleanly)
+  global.antidelete = global.antidelete || {};
+  global.antiedit = global.antiedit || {};
+  global.antilink = global.antilink || {};
+  global.antilinkick = global.antilinkick || {};
+  global.autogreet = global.autogreet || {};
+  global.antibug = global.antibug ?? false;
+  global.autotyping = global.autotyping ?? false;
+  global.autoreact = global.autoreact ?? false;
+  global.autostatus = global.autostatus ?? false;
 
   console.log("✅ BOT OWNER JID:", global.owner);
 
@@ -93,21 +94,66 @@ async function startBot() {
 
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
+    if (!msg.message) return; // Discard empty packets safely
+
     const jid = msg.key.remoteJid;
     const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
+    const isGroup = jid.endsWith("@g.us");
 
-    if (settings.ANTIDELETE === true) {  
+    // ==========================================
+    // 🛠️ FIX: DYNAMIC SWITCH EVALUATIONS
+    // ==========================================
+    const isAntiDeleteOn = (settings.ANTIDELETE === true) || 
+                            (settings.antidelete === true) || 
+                            (global.antidelete[jid] === true) || 
+                            (global.antidelete === true);
+
+    const isAntiEditOn = (settings.ANTIEDIT === true) || 
+                          (settings.antiedit === true) || 
+                          (global.antiedit[jid] === true) || 
+                          (global.antiedit === true);
+
+    // ==========================================
+    // 🗑️ DYNAMIC ANTIDELETE ENGINE
+    // ==========================================
+    if (isAntiDeleteOn) {  
       try {  
-        if (msg.message) storeMessage(msg);  
-        if (msg.message?.protocolMessage?.type === 0) {  
+        // Cache normal messages into your storage module automatically
+        if (!msg.message.protocolMessage) {
+          storeMessage(msg);  
+        }
+        
+        // Intercept WhatsApp structure deletion updates (Type 0 / REVOKE string hooks)
+        if (msg.message?.protocolMessage?.type === 0 || msg.message?.protocolMessage?.type === 'REVOKE') {  
           await handleMessageRevocation(sock, msg);  
           return;  
         }  
       } catch (err) {  
-        console.error("❌ AntiDelete Error:", err.message);  
+        console.error("❌ AntiDelete Processing Error:", err.message);  
       }  
     }  
 
+    // ==========================================
+    // ✏️ DYNAMIC ANTIEDIT INTERCEPTOR
+    // ==========================================
+    if (isAntiEditOn && msg.message?.protocolMessage?.type === 14 && !msg.key.fromMe) {
+      try {
+        const editTargetId = msg.message.protocolMessage.key.id;
+        const newEditedText = msg.message.protocolMessage.editedMessage?.conversation || 
+                             msg.message.protocolMessage.editedMessage?.extendedTextMessage?.text;
+        
+        if (newEditedText) {
+          await sock.sendMessage(jid, { 
+            text: `⚠️ *[ANTI-EDIT DETECTED]*\n\n👤 *User:* @${(msg.key.participant || msg.participant || jid).split('@')[0]}\n📝 *New message content edited to:* \n_"${newEditedText}"_`,
+            mentions: [msg.key.participant || msg.participant || jid]
+          }, { quoted: msg });
+        }
+      } catch (err) {
+        console.error("❌ AntiEdit Processing Error:", err.message);
+      }
+    }
+
+    // ✅ AUTOTYPING INTERCEPT
     if (global.autotyping && jid !== "status@broadcast") {  
       try {  
         await sock.sendPresenceUpdate('composing', jid);  
@@ -117,6 +163,7 @@ async function startBot() {
       }  
     }  
 
+    // ✅ AUTOREACT INTERCEPT
     if (global.autoreact && jid !== "status@broadcast") {
       try {
         const hearts = ["❤️","☣️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💕","💞","💓","💗","💖","💘","💝","🇵🇰","♥️"];
@@ -127,6 +174,7 @@ async function startBot() {
       }
     }  
 
+    // ✅ AUTOSTATUS VIEW
     if (global.autostatus && jid === "status@broadcast") {  
       try {  
         await sock.readMessages([{ remoteJid: jid, id: msg.key.id, participant: msg.key.participant || msg.participant }]);  
@@ -137,7 +185,8 @@ async function startBot() {
       return;  
     }  
 
-    if (jid.endsWith("@g.us") && global.antilink[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
+    // ✅ ANTILINK RULES
+    if (isGroup && global.antilink[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
       try {
         await sock.sendMessage(jid, { delete: { remoteJid: jid, fromMe: false, id: msg.key.id, participant: msg.key.participant || msg.participant } });
       } catch (err) {
@@ -145,7 +194,8 @@ async function startBot() {
       }
     }
 
-    if (jid.endsWith("@g.us") && global.antilinkick[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
+    // ✅ ANTILINKKICK RULES
+    if (isGroup && global.antilinkick[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
       try {
         await AntiLinkKick.checkAntilinkKick({ conn: sock, m: msg });
       } catch (err) {
@@ -153,6 +203,7 @@ async function startBot() {
       }
     }
 
+    // ✅ ANTIBUG CRASH PROTECTION
     if (global.antibug === true && !msg.key.fromMe) {
       try {
         const isBug = await antibugHandler({ conn: sock, m: msg }); 
@@ -162,6 +213,7 @@ async function startBot() {
       }
     }
 
+    // ✅ CENTRAL COMMAND EXECUTION
     try {  
       await handleCommand(sock, msg, {});  
     } catch (err) {  
@@ -198,7 +250,7 @@ async function startBot() {
     }
   });
 
-  // ✅ FIXED AUTOMATED PAIRING CODE LOGIC
+  // ✅ PAIRING CODE LOGIC FOR CLOUD RUNTIME
   if (!state.creds?.registered) {
     let targetNumber = global.ownerNumber;
 
@@ -229,4 +281,4 @@ async function startBot() {
 }
 
 startBot();
-                             
+    
