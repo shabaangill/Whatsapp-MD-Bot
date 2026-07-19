@@ -75,9 +75,12 @@ async function startBot() {
     }  
 
     if (connection === "close") {  
-      const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);  
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 401;  
       console.log("❌ Disconnected. Reconnecting:", shouldReconnect);  
-      if (shouldReconnect) startBot();  
+      if (shouldReconnect) {
+        setTimeout(() => startBot(), 5000); // Add a 5-second delay to prevent aggressive loops
+      }  
     }
   });
 
@@ -188,41 +191,37 @@ async function startBot() {
     }
   });
 
-  // ✅ AUTOMATED PAIRING CODE LOGIC FOR CLOUD RUNTIME
+  // ✅ FIXED AUTOMATED PAIRING CODE LOGIC
   if (!state.creds?.registered) {
-    let targetTargetNumber = global.ownerNumber;
+    let targetNumber = global.ownerNumber;
 
     if (!process.stdin.isTTY) {
-      console.log(`ℹ️ Cloud Deployment Setup: Automatically fetching pairing code for: ${targetTargetNumber}`);
+      console.log(`ℹ️ Cloud Deployment: Requesting pairing code for setup number: ${targetNumber}`);
     } else {
       const inputNumber = await question("📱 Enter your WhatsApp number (with country code): ");
-      if (inputNumber.trim()) targetTargetNumber = inputNumber.trim();
+      if (inputNumber.trim()) targetNumber = inputNumber.trim();
     }
 
-    if (targetTargetNumber) {
-      try {
-        const cleanedNumber = targetTargetNumber.replace(/[^0-9]/g, "");
-        setTimeout(async () => {
-          await sock.requestPairingCode(cleanedNumber);
-          setTimeout(() => {  
-            const code = sock.authState.creds?.pairingCode;  
-            if (code) {  
-              console.log("\n====================================");
-              console.log("🚀 [RAILWAY PAIRING CODE FOUND] 🚀");
-              console.log(`🔗 CODE: ${code}`);
-              console.log("====================================");
-              console.log("👉 Go to WhatsApp → Linked Devices → Link with phone number.\n");  
-            } else {  
-              console.log("❌ Pairing code generation timed out. Restarting container might help.");  
-            }  
-          }, 3000);
-        }, 2000);
-      } catch (pairingError) {
-        console.error("❌ Failed to request pairing code:", pairingError.message);
-      }
+    if (targetNumber) {
+      const cleanedNumber = targetNumber.replace(/[^0-9]/g, "");
+      // Give the socket 4 seconds to settle before requesting the pairing token
+      setTimeout(async () => {
+        try {
+          const code = await sock.requestPairingCode(cleanedNumber);
+          if (code) {
+            console.log("\n====================================");
+            console.log("🚀 [RAILWAY PAIRING CODE FOUND] 🚀");
+            console.log(`🔗 CODE: ${code}`);
+            console.log("====================================");
+            console.log("👉 Go to WhatsApp → Linked Devices → Link with phone number.\n");  
+          }
+        } catch (pairingError) {
+          console.error("❌ Failed to request pairing code:", pairingError.message);
+        }
+      }, 4000);
     }
   }
 }
 
 startBot();
-                                 
+    
