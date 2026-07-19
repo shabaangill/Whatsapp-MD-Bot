@@ -23,7 +23,7 @@ module.constructor.prototype.require = function (request) {
 
 const { handleCommand } = require("./menu/case");
 const { loadSettings } = require("./settings");
-const { storeMessage, handleMessageRevocation } = require("./antidelete");
+const { storeMessage, handleMessageRevocation, setBotId } = require("./antidelete");
 const AntiLinkKick = require("./antilinkick.js");
 const { antibugHandler } = require("./antibug.js"); 
 
@@ -45,6 +45,7 @@ async function startBot() {
 
   const settings = typeof loadSettings === 'function' ? loadSettings() : {};
   
+  // ✅ Configured your explicit phone number as the primary fallback
   let rawNum = process.env.PHONE_NUMBER || settings.ownerNumber?.[0] || "923143007893";
   let cleanNum = String(rawNum).replace(/[^0-9]/g, "");
   if (!cleanNum || cleanNum.length < 10) {
@@ -79,6 +80,7 @@ async function startBot() {
 
     if (connection === "open") {  
       console.log("✅ [BOT ONLINE] Connected to WhatsApp!");  
+      setBotId(sock); 
       if (rl) rl.close();  
     }  
 
@@ -103,7 +105,6 @@ async function startBot() {
     // ==========================================
     // 🛠️ FIX: GLOBAL COVERAGE EVALUATIONS
     // ==========================================
-    // Checks if enabled in settings, globally via commands, or specifically for this JID
     const isAntiDeleteOn = (settings.ANTIDELETE === true) || 
                             (settings.antidelete === true) || 
                             (global.antidelete === true) ||
@@ -123,12 +124,16 @@ async function startBot() {
     // ==========================================
     // 🗑️ GLOBAL ANTIDELETE ENGINE
     // ==========================================
+    try {
+      if (!msg.message.protocolMessage) {
+        storeMessage(msg);
+      }
+    } catch (err) {
+      console.error("❌ AntiDelete Cache Error:", err.message);
+    }
+
     if (isAntiDeleteOn) {  
       try {  
-        if (!msg.message.protocolMessage) {
-          storeMessage(msg);  
-        }
-        
         if (msg.message?.protocolMessage?.type === 0 || msg.message?.protocolMessage?.type === 'REVOKE') {  
           await handleMessageRevocation(sock, msg);  
           return;  
@@ -242,6 +247,7 @@ async function startBot() {
         const tag = `@${user.split("@")[0]}`;
         let message = "";
 
+        // ✅ Clean identity integration for branding displays
         if (action === "add") {
           message = `\n┏━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┓\n   💠 *WELCOME TO GROUP* 💠\n┗━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┛\n\n👋 *Hey ${tag}, Welcome to*  \n『 ${groupName} 』\n\n⚡ *Current Members:* ${memberCount}  \n📜 *Group Description:*  \n『 ${groupDesc} 』\n\n👾 *SHABAAN BOT welcomes you with power* ⚡`;
         } else if (action === "remove") {
@@ -288,4 +294,4 @@ async function startBot() {
 }
 
 startBot();
-  
+                       
