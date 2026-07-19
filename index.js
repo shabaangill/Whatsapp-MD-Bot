@@ -8,14 +8,13 @@ const {
   DisconnectReason 
 } = require("@whiskeysockets/baileys");
 
-// ✅ SAFE INTERCEPTOR: Silences the red core.js / menu.js errors completely before files are required
+// ✅ SAFE INTERCEPTOR: Silences the red core.js / menu.js errors completely
 const originalRequire = module.constructor.prototype.require;
 module.constructor.prototype.require = function (request) {
   try {
     return originalRequire.apply(this, arguments);
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND' && (request.includes('core') || request.includes('menu'))) {
-      // Quietly return an empty object fallback instead of throwing a massive log error
       return {};
     }
     throw err;
@@ -45,12 +44,12 @@ async function startBot() {
   const sock = makeWASocket({ version, auth: state, logger: P({ level: "fatal" }) });
 
   const settings = typeof loadSettings === 'function' ? loadSettings() : {};
-  let ownerRaw = settings.ownerNumber?.[0] || "923143007893";
+  let ownerRaw = process.env.PHONE_NUMBER || settings.ownerNumber?.[0] || "923143007893";
   const ownerJid = ownerRaw.includes("@s.whatsapp.net") ? ownerRaw : ownerRaw + "@s.whatsapp.net";
 
   global.sock = sock;
   global.settings = settings;
-  global.signature = settings.signature || "> 𝗦𝗛𝗔𝗕𝗔𝗔𝗡 𝗕𝗢𝗧 ❦ ✓";
+  global.signature = settings.signature || "> 👑 𝗦𝗛𝗔𝗕𝗔𝗔𝗡 𝗕𝗢𝗧 ❦ ✓";
   global.owner = ownerJid;
   global.ownerNumber = ownerRaw;
 
@@ -72,9 +71,7 @@ async function startBot() {
 
     if (connection === "open") {  
       console.log("✅ [BOT ONLINE] Connected to WhatsApp!");  
-      if (rl) {
-        rl.close();
-      }  
+      if (rl) rl.close();  
     }  
 
     if (connection === "close") {  
@@ -89,7 +86,6 @@ async function startBot() {
     const jid = msg.key.remoteJid;
     const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
 
-    // ✅ AntiDelete
     if (settings.ANTIDELETE === true) {  
       try {  
         if (msg.message) storeMessage(msg);  
@@ -102,7 +98,6 @@ async function startBot() {
       }  
     }  
 
-    // ✅ AutoTyping
     if (global.autotyping && jid !== "status@broadcast") {  
       try {  
         await sock.sendPresenceUpdate('composing', jid);  
@@ -112,14 +107,9 @@ async function startBot() {
       }  
     }  
 
-    // ✅ AutoReact
     if (global.autoreact && jid !== "status@broadcast") {
       try {
-        const hearts = [
-          "❤️","☣️","🧡","💛","💚","💙","💜",
-          "🖤","🤍","🤎","💕","💞","💓",
-          "💗","💖","💘","💝","🇵🇰","♥️"
-        ];
+        const hearts = ["❤️","☣️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💕","💞","💓","💗","💖","💘","💝","🇵🇰","♥️"];
         const randomHeart = hearts[Math.floor(Math.random() * hearts.length)];
         await sock.sendMessage(jid, { react: { text: randomHeart, key: msg.key } });
       } catch (err) {
@@ -127,14 +117,9 @@ async function startBot() {
       }
     }  
 
-    // ✅ AutoStatus View
     if (global.autostatus && jid === "status@broadcast") {  
       try {  
-        await sock.readMessages([{  
-          remoteJid: jid,  
-          id: msg.key.id,  
-          participant: msg.key.participant || msg.participant  
-        }]);  
+        await sock.readMessages([{ remoteJid: jid, id: msg.key.id, participant: msg.key.participant || msg.participant }]);  
         console.log(`👁️ Status Seen: ${msg.key.participant || "Unknown"}`);  
       } catch (err) {  
         console.error("❌ AutoStatus View Error:", err.message);  
@@ -142,51 +127,31 @@ async function startBot() {
       return;  
     }  
 
-    // ✅ Antilink
-    if (
-      jid.endsWith("@g.us") &&
-      global.antilink[jid] === true &&
-      /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) &&
-      !msg.key.fromMe
-    ) {
+    if (jid.endsWith("@g.us") && global.antilink[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
       try {
-        await sock.sendMessage(jid, {  
-          delete: { remoteJid: jid, fromMe: false, id: msg.key.id, participant: msg.key.participant || msg.participant }  
-        });  
-        
+        await sock.sendMessage(jid, { delete: { remoteJid: jid, fromMe: false, id: msg.key.id, participant: msg.key.participant || msg.participant } });
       } catch (err) {
         console.error("❌ Antilink Delete Error:", err.message);
       }
     }
 
-    // ✅ AntilinkKick
-    if (
-      jid.endsWith("@g.us") &&
-      global.antilinkick[jid] === true &&
-      /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) &&
-      !msg.key.fromMe
-    ) {
+    if (jid.endsWith("@g.us") && global.antilinkick[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
       try {
         await AntiLinkKick.checkAntilinkKick({ conn: sock, m: msg });
-        
       } catch (err) {
-        console.error("❌ AntiLinkKick Error:", err.message || err);
+        console.error("❌ AntilinkKick Error:", err.message || err);
       }
     }
 
-    // ✅ AntiBug
     if (global.antibug === true && !msg.key.fromMe) {
       try {
         const isBug = await antibugHandler({ conn: sock, m: msg }); 
-        if (isBug) {
-          return;
-        }
+        if (isBug) return;
       } catch (err) {
         console.error("❌ AntiBug Error:", err.message || err);
       }
     }
 
-    // ✅ Command handler
     try {  
       await handleCommand(sock, msg, {});  
     } catch (err) {  
@@ -194,7 +159,6 @@ async function startBot() {
     }
   });
 
-  // ✅ AutoGreet
   sock.ev.on("group-participants.update", async (update) => {
     const { id, participants, action } = update;
     if (!global.autogreet?.[id]) return;
@@ -210,29 +174,9 @@ async function startBot() {
         let message = "";
 
         if (action === "add") {
-          message = `
-┏━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┓
-   💠 *WELCOME TO GROUP* 💠
-┗━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┛
-
-👋 *Hey ${tag}, Welcome to*  
-『 ${groupName} 』
-
-⚡ *Current Members:* ${memberCount}  
-📜 *Group Description:*  
-『 ${groupDesc} 』
-
-👾 *SHABAAN BOT welcomes you with power* ⚡
-          `;
+          message = `\n┏━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┓\n   💠 *WELCOME TO GROUP* 💠\n┗━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┛\n\n👋 *Hey ${tag}, Welcome to*  \n『 ${groupName} 』\n\n⚡ *Current Members:* ${memberCount}  \n📜 *Group Description:*  \n『 ${groupDesc} 』\n\n👾 *SHABAAN BOT welcomes you with power* ⚡`;
         } else if (action === "remove") {
-          message = `
-┏━━━💔༺ 𓆩☠️𓆪 ༻💔━━━┓
-   ❌ *GOODBYE MEMBER* ❌
-┗━━━💔༺ 𓆩☠️𓆪 ༻💔━━━┛
-
-💔 ${tag} *has left the group...*  
-⚡ *Now ${memberCount} members remain in ${groupName}*  
-          `;
+          message = `\n┏━━━💔༺ 𓆩☠️𓆪 ༻💔━━━┓\n   ❌ *GOODBYE MEMBER* ❌\n┗━━━💔༺ 𓆩☠️𓆪 ༻💔━━━┛\n\n💔 ${tag} *has left the group...*  \n⚡ *Now ${memberCount} members remain in ${groupName}*`;
         }
 
         if (message) {
@@ -244,27 +188,41 @@ async function startBot() {
     }
   });
 
-  // ✅ Safe Pairing Input Routing for Cloud Deployment
+  // ✅ AUTOMATED PAIRING CODE LOGIC FOR CLOUD RUNTIME
   if (!state.creds?.registered) {
-    if (!process.stdin.isTTY) {
-      console.log("ℹ️ Cloud Server deployment detected: Terminal interaction is disabled.");
-      console.log("⚡ Please generate your 'auth_info' session files locally before pushing to Railway.");
-    } else {
-      const phoneNumber = await question("📱 Enter your WhatsApp number (with country code): ");
-      await sock.requestPairingCode(phoneNumber.trim());
+    let targetTargetNumber = global.ownerNumber;
 
-      setTimeout(() => {  
-        const code = sock.authState.creds?.pairingCode;  
-        if (code) {  
-          console.log("\n🔗 Pair this device using this code in WhatsApp:\n");  
-          console.log("   " + code + "\n");  
-          console.log("Go to WhatsApp → Linked Devices → Link with code.");  
-        } else {  
-          console.log("❌ Pairing code not found.");  
-        }  
-      }, 1000);
+    if (!process.stdin.isTTY) {
+      console.log(`ℹ️ Cloud Deployment Setup: Automatically fetching pairing code for: ${targetTargetNumber}`);
+    } else {
+      const inputNumber = await question("📱 Enter your WhatsApp number (with country code): ");
+      if (inputNumber.trim()) targetTargetNumber = inputNumber.trim();
+    }
+
+    if (targetTargetNumber) {
+      try {
+        const cleanedNumber = targetTargetNumber.replace(/[^0-9]/g, "");
+        setTimeout(async () => {
+          await sock.requestPairingCode(cleanedNumber);
+          setTimeout(() => {  
+            const code = sock.authState.creds?.pairingCode;  
+            if (code) {  
+              console.log("\n====================================");
+              console.log("🚀 [RAILWAY PAIRING CODE FOUND] 🚀");
+              console.log(`🔗 CODE: ${code}`);
+              console.log("====================================");
+              console.log("👉 Go to WhatsApp → Linked Devices → Link with phone number.\n");  
+            } else {  
+              console.log("❌ Pairing code generation timed out. Restarting container might help.");  
+            }  
+          }, 3000);
+        }, 2000);
+      } catch (pairingError) {
+        console.error("❌ Failed to request pairing code:", pairingError.message);
+      }
     }
   }
 }
 
 startBot();
+                                 
