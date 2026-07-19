@@ -56,7 +56,7 @@ async function startBot() {
 
   global.sock = sock;
   global.settings = settings;
-  global.signature = settings.signature || "> 👑 𝗦𝗛𝗔𝗕𝗔𝗔𝗡 𝗕𝗢𝗧 ❦ ✓";
+  global.signature = settings.signature || "> 👑 👑 𝗦𝗛𝗔𝗕𝗔𝗔𝗡 𝗕𝗢𝗧 ❦ ✓";
   global.owner = ownerJid;
   global.ownerNumber = cleanNum;
 
@@ -236,9 +236,9 @@ async function startBot() {
       }
     }
 
-    // ✅ CENTRAL COMMAND EXECUTION
+    // ✅ CENTRAL COMMAND EXECUTION (FIXED PARAMETERS MATCHING CASE.JS)
     try {  
-      await handleCommand(sock, msg, {});  
+      await handleCommand(sock, msg);  
     } catch (err) {  
       console.error("❌ Command error:", err.message || err);  
     }
@@ -304,4 +304,4 @@ async function startBot() {
 }
 
 startBot();
-                                     
+    
