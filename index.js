@@ -1,4 +1,5 @@
 const fs = require("fs");
+const path = require("path");
 const readline = require("readline");
 const P = require("pino");
 const { 
@@ -45,7 +46,6 @@ async function startBot() {
 
   const settings = typeof loadSettings === 'function' ? loadSettings() : {};
   
-  // ✅ Configured your explicit phone number as the primary fallback
   let rawNum = process.env.PHONE_NUMBER || settings.ownerNumber?.[0] || "923143007893";
   let cleanNum = String(rawNum).replace(/[^0-9]/g, "");
   if (!cleanNum || cleanNum.length < 10) {
@@ -60,7 +60,7 @@ async function startBot() {
   global.owner = ownerJid;
   global.ownerNumber = cleanNum;
 
-  // ✅ Global Switch Indicators
+  // ✅ Global Switch Indicators Initializations
   global.antidelete = global.antidelete || {};
   global.antiedit = global.antiedit || {};
   global.antilink = global.antilink || {};
@@ -99,27 +99,38 @@ async function startBot() {
     if (!msg.message) return; 
 
     const jid = msg.key.remoteJid;
+    if (!jid) return;
+
     const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
     const isGroup = jid.endsWith("@g.us");
 
     // ==========================================
-    // 🛠️ FIX: GLOBAL COVERAGE EVALUATIONS
+    // 🛠️ DYNAMIC FILE STORAGE COUPLING (FIXES OTHER CHATS)
     // ==========================================
-    const isAntiDeleteOn = (settings.ANTIDELETE === true) || 
+    let fileToggles = {};
+    const toggleFile = path.join(__dirname, "antidelete.json");
+    if (fs.existsSync(toggleFile)) {
+      try {
+        fileToggles = JSON.parse(fs.readFileSync(toggleFile));
+      } catch (e) {
+        fileToggles = {};
+      }
+    }
+
+    // Direct, crash-proof boolean verification rules across all chats
+    const isAntiDeleteOn = (fileToggles[jid] === true) || 
+                            (settings.ANTIDELETE === true) || 
                             (settings.antidelete === true) || 
                             (global.antidelete === true) ||
-                            (global.antidelete[jid] === true) ||
-                            (Object.values(global.antidelete).includes(true));
+                            (global.antidelete?.[jid] === true);
 
     const isAntiEditOn = (settings.ANTIEDIT === true) || 
                           (settings.antiedit === true) || 
                           (global.antiedit === true) ||
-                          (global.antiedit[jid] === true) ||
-                          (Object.values(global.antiedit).includes(true));
+                          (global.antiedit?.[jid] === true);
 
     const isAutoReactOn = (global.autoreact === true) || 
-                           (global.autoreact[jid] === true) ||
-                           (Object.values(global.autoreact).includes(true));
+                           (global.autoreact?.[jid] === true);
 
     // ==========================================
     // 🗑️ GLOBAL ANTIDELETE ENGINE
@@ -198,7 +209,7 @@ async function startBot() {
     }  
 
     // ✅ ANTILINK RULES
-    if (isGroup && global.antilink[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
+    if (isGroup && global.antilink?.[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
       try {
         await sock.sendMessage(jid, { delete: { remoteJid: jid, fromMe: false, id: msg.key.id, participant: msg.key.participant || msg.participant } });
       } catch (err) {
@@ -207,7 +218,7 @@ async function startBot() {
     }
 
     // ✅ ANTILINKKICK RULES
-    if (isGroup && global.antilinkick[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
+    if (isGroup && global.antilinkick?.[jid] === true && /(chat\.whatsapp\.com|t\.me|discord\.gg|wa\.me|bit\.ly|youtu\.be|https?:\/\/)/i.test(text) && !msg.key.fromMe) {
       try {
         await AntiLinkKick.checkAntilinkKick({ conn: sock, m: msg });
       } catch (err) {
@@ -247,7 +258,6 @@ async function startBot() {
         const tag = `@${user.split("@")[0]}`;
         let message = "";
 
-        // ✅ Clean identity integration for branding displays
         if (action === "add") {
           message = `\n┏━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┓\n   💠 *WELCOME TO GROUP* 💠\n┗━━━✨༺ 𓆩🤖𓆪 ༻✨━━━┛\n\n👋 *Hey ${tag}, Welcome to*  \n『 ${groupName} 』\n\n⚡ *Current Members:* ${memberCount}  \n📜 *Group Description:*  \n『 ${groupDesc} 』\n\n👾 *SHABAAN BOT welcomes you with power* ⚡`;
         } else if (action === "remove") {
@@ -294,4 +304,4 @@ async function startBot() {
 }
 
 startBot();
-                       
+                                     
