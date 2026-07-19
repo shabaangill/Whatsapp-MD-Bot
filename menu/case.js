@@ -5,7 +5,7 @@ const { generateWAMessageFromContent } = require("@whiskeysockets/baileys");
 const { toggleAntidelete } = require("../antidelete");
 
 // Default mode
-if (!global.mode) global.mode = "self";
+if (!global.mode) global.mode = "public"; // 🔥 Changed default to public so it instantly works everywhere
 
 // Owner-only commands list
 const ownerOnlyCommands = [
@@ -46,16 +46,32 @@ try {
 // 🔹 MAIN COMMAND HANDLER
 // ===============================
 async function handleCommand(conn, msg) {
-  const text =
-    msg.message?.conversation ||
-    msg.message?.extendedTextMessage?.text ||
-    msg.message?.imageMessage?.caption ||
-    msg.message?.videoMessage?.caption ||
-    "";
+  // ✅ FIX 1: Flawless Message Type Extractor (Reads deep structures from other chats)
+  const M = msg.message;
+  if (!M) return;
 
+  const text = (
+    M.conversation ||
+    M.extendedTextMessage?.text ||
+    M.imageMessage?.caption ||
+    M.videoMessage?.caption ||
+    M.viewOnceMessage?.message?.conversation ||
+    M.viewOnceMessage?.message?.imageMessage?.caption ||
+    M.viewOnceMessage?.message?.videoMessage?.caption ||
+    M.viewOnceMessageV2?.message?.conversation ||
+    M.viewOnceMessageV2?.message?.imageMessage?.caption ||
+    M.viewOnceMessageV2?.message?.videoMessage?.caption ||
+    M.editedMessage?.conversation ||
+    M.editedMessage?.extendedTextMessage?.text ||
+    M.protocolMessage?.editedMessage?.conversation ||
+    M.protocolMessage?.editedMessage?.extendedTextMessage?.text ||
+    ""
+  ).trim();
+
+  // If message doesn't start with your command prefix, skip it entirely
   if (!text.startsWith(".")) return;
 
-  const parts = text.trim().split(/ +/);
+  const parts = text.split(/ +/);
   const command = parts[0].slice(1).toLowerCase();
   const args = parts.slice(1);
 
@@ -63,20 +79,21 @@ async function handleCommand(conn, msg) {
   if (!chatId) return;
   
   const isGroup = chatId.endsWith("@g.us");
+  
+  // ✅ FIX 2: Correctly isolate the sender whether it is a private chat or a group
   const senderId = msg.key.fromMe
-    ? conn.user.id.split(":")[0] + "@s.whatsapp.net"
-    : msg.key.participant || msg.key.remoteJid;
+    ? (conn.user.id.split(":")[0] + "@s.whatsapp.net")
+    : (msg.key.participant || msg.key.remoteJid);
 
   const senderNum = senderId.replace(/\D/g, "");
   
-  // ✅ FIX: Robust absolute owner matching for your number
+  // ✅ FIX 3: Strict Owner Matching
   const cleanOwnerConfig = "923143007893"; 
   const isOwner = (senderNum === cleanOwnerConfig) || msg.key.fromMe;
-  const isDev = senderNum.includes("9234") || isOwner; 
 
-  const reply = (text) => conn.sendMessage(chatId, { text }, { quoted: msg });
+  const reply = (replyText) => conn.sendMessage(chatId, { text: replyText }, { quoted: msg });
 
-  // 🔸 Mode control
+  // 🔸 Mode switching control
   if (command === "self") {
     if (!isOwner) return reply("🚫 *Only Owner Can Switch Modes*");
     global.mode = "self";
@@ -89,17 +106,17 @@ async function handleCommand(conn, msg) {
     return reply("🌍 BOT IS NOW IN *PUBLIC MODE* — Everyone can use me!");
   }
 
-  // 🔸 Mode restrictions enforcement
-  if (global.mode === "self" && !isOwner && !["menu", "repo", "idcheck"].includes(command)) {
-    // Silently ignore execution requests from other users while locked down in self mode
-    return;
+  // 🔸 Mode restriction policies
+  if (global.mode === "self" && !isOwner) {
+    // Only let the owner run commands if self-mode is active
+    if (!["menu", "repo", "idcheck"].includes(command)) return;
   }
 
   if (global.mode === "public" && ownerOnlyCommands.includes(command) && !isOwner) {
     return reply("💀 *OWNER ONLY COMMAND!* You ain't my master londey!");
   }
 
-  // 🔸 Validated Routing Execution
+  // 🔸 Run Validated Request
   return runCommand({
     conn,
     msg,
@@ -136,7 +153,7 @@ async function runCommand({
       );
     }
 
-    // 🔸 menu message panels routing
+    // 🔸 menu array dictionary matching
     if (menuData && menuData[command]) {
       const menuMessage = generateWAMessageFromContent(
         chatId,
@@ -148,12 +165,12 @@ async function runCommand({
       });
     }
 
-    // 🔸 antidelete handler coupling
+    // 🔸 antidelete hook
     if (command === "antidelete") {
       return toggleAntidelete({ conn, m: msg, args, reply, jid: chatId });
     }
 
-    // 🔸 core engine module functional mapping
+    // 🔸 core routing files matching
     if (core && core[command] && typeof core[command] === "function") {
       return await core[command]({
         conn,
@@ -167,7 +184,7 @@ async function runCommand({
       });
     }
 
-    // 🔸 check individual file commands outside main routers
+    // 🔸 root folder external individual files layout loader
     const filePath = path.join(__dirname, "..", `${command}.js`);
     if (fs.existsSync(filePath)) {
       const commandFile = require(filePath);
