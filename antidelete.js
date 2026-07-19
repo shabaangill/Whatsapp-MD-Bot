@@ -1,5 +1,5 @@
 // 📂 File: antidelete.js
-// 🛡️ Ultra Pro Max Anti-Delete System — TAYYAB HELL-MD
+// 🛡️ Ultra Pro Max Anti-Delete System — SHABAAN BOT
 
 const fs = require("fs");
 const path = require("path");
@@ -10,7 +10,12 @@ const toggleFile = path.join(__dirname, "antidelete.json");
 // ✅ Load or initialize toggles
 let toggles = {};
 if (fs.existsSync(toggleFile)) {
-  toggles = JSON.parse(fs.readFileSync(toggleFile));
+  try {
+    toggles = JSON.parse(fs.readFileSync(toggleFile));
+  } catch (e) {
+    console.error("❌ Error parsing antidelete toggles file:", e.message);
+    toggles = {};
+  }
 }
 
 // ✅ Save toggle settings
@@ -20,11 +25,15 @@ function saveToggles() {
 
 // ✅ Auto-reset deleted messages file when bot starts
 if (fs.existsSync(filePath)) {
-  fs.unlinkSync(filePath);
+  try {
+    fs.unlinkSync(filePath);
+  } catch (e) {
+    console.error("❌ Error resetting delete log file:", e.message);
+  }
 }
 
 const deletedMessages = new Map();
-let botId = null; // 🔥 Bot ki apni ID save karne ke liye
+let botId = null; // 🔥 Bot ki apni ID save karne karne ke liye
 
 // ✅ Set Bot ID from connection
 function setBotId(sock) {
@@ -72,11 +81,11 @@ async function toggleAntidelete({ conn, m, args, reply, jid }) {
     return reply(
 `〔 ✨ *ＡＮＴＩ－ＤＥＬＥＴＥ* ✨ 〕
 ┃ 🛡️ Usage:
-┃    🌸 *.antidelete on*   → 𝘌𝘯𝘢𝘣𝘭𝘦
-┃    🌸 *.antidelete off*  → 𝘋𝘪𝘴𝘢𝘣𝘭𝘦
+┃    🌸 *.antidelete on*   → 𝘌𝘯𝘢𝘣𝘭ε
+┃    🌸 *.antidelete off*  → 𝘋𝘪𝘴𝘢𝘣𝘭ε
 ┃ 
-┃ 💡 𝘛𝘩𝘪𝘴 𝘸𝘪𝘭𝘭 𝘴𝘢𝘷𝘦 & 𝘳𝘦𝘤𝘰𝘷𝘦𝘳
-┃    𝘢𝘯𝘺 𝘥𝘦𝘭𝘦𝘵𝘦𝘥 𝘮𝘦𝘴𝘴𝘢𝘨𝘦𝘴 💬
+┃ 💡 𝘛𝘩𝘪𝘴 𝘸𝘪𝘭𝘭 𝘴𝘢𝘷𝘦 & 𝘳ε𝘤𝘰𝘷ε𝘳
+┃    𝘢𝘯𝘺 𝘥ε𝘭ε𝘵ε𝘥 𝘮ε𝘴𝘴𝘢𝘨ε𝘴 💬
 ╰━━━━━━━━━━━━━━━━━━╯`
     );
   }
@@ -87,10 +96,10 @@ async function toggleAntidelete({ conn, m, args, reply, jid }) {
 
   return reply(
 `〔 💖 *ＡＮＴＩ－ＤＥＬＥＴＥ ＳＴＡＴＵＳ* 💖 〕
-┃ 🔰 𝘗𝘳𝘰𝘵𝘦𝘤𝘵𝘪𝘰𝘯: *${enabled ? "ＥＮＡＢＬＥＤ ✅" : "ＤＩＳＡＢＬＥＤ ❌"}*
-┃ 📌 𝘈𝘱𝘱𝘭𝘪𝘦𝘴 𝘵𝘰: *𝘛𝘩𝘪𝘴 𝘊𝘩𝘢𝘵*
+┃ 🔰 𝘗𝘳𝘰𝘵ε𝘤𝘵𝘪𝘰𝘯: *${enabled ? "ＥＮＡＢＬＥＤ ✅" : "ＤＩＳＡＢＬＥＤ ❌"}*
+┃ 📌 𝘈𝘱𝘱𝘭𝘪ε𝘴 𝘵𝘰: *𝘛𝘩𝘪𝘴 𝘊𝘩𝘢𝘵*
 ┃ 
-┃ 👑 𝑺𝒆𝒄𝒖𝒓𝒆𝒅 𝒃𝒚: ✨ 𝑻𝒂𝒚𝒚𝒂𝒃 𝑴𝑫 ✨
+┃ 👑 𝑺𝒆𝒄𝒖𝒓𝒆𝒅 𝒃𝒚: ✨ 𝗦𝗛𝗔𝗕𝗔𝗔𝗡 𝗕𝗢𝗧 ✨
 ╰━━━━━━━━━━━━━━━━━━╯`
   );
 }
@@ -120,10 +129,10 @@ async function handleMessageRevocation(sock, msg) {
 
   const infoText = 
 `〔 ⚠️ *ＡＮＴＩ－ＤＥＬＥＴＥ ＤＥＴＥＣＴＥＤ* ⚠️ 〕
-┃ 👤 𝘚𝘦𝘯𝘥𝘦𝘳: *${senderName}*
-┃ 🗑️ 𝘋𝘦𝘭𝘦𝘵𝘦𝘥 𝘮𝘴𝘨 𝘳𝘦𝘤𝘰𝘷𝘦𝘳𝘦𝘥 ✨
+┃ 👤 𝘚ε𝘯𝘥ε𝘳: *${senderName}*
+┃ 🗑️ 𝘋ε𝘭ε𝘵ε𝘥 𝘮𝘴𝘨 𝘳ε𝘤𝘰𝘷ε𝘳ε𝘥 ✨
 ┃ 
-┃ 💌 𝑺𝒆𝒄𝒖𝒓𝒆𝒅 𝒃𝒚 𝑻𝒂𝒚𝒚𝒂𝒃 𝑴𝑫
+┃ 👑 𝑺𝒆𝒄𝒖𝒓𝒆𝒅 𝒃𝒚: ✨ 𝗦𝗛𝗔𝗕𝗔𝗔𝗡 𝗕𝗢𝗧 ✨
 ╰━━━━━━━━━━━━━━━━━━╯`;
 
   if (messageContent.text) {
@@ -176,3 +185,4 @@ module.exports = {
   toggleAntidelete,
   setBotId
 };
+      
